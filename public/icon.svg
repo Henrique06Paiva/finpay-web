@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Logo do sistema de finanças pessoais">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0F3D3E"/>
+      <stop offset="1" stop-color="#051C22"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5EEAB4" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#5EEAB4" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="coin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD978"/>
+      <stop offset="1" stop-color="#E8A93A"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#5EEAB4" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#5EEAB4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Fundo -->
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#glow)"/>
+  <rect x="3" y="3" width="506" height="506" rx="113" fill="none" stroke="#5EEAB4" stroke-opacity="0.22" stroke-width="3"/>
+
+  <!-- Moeda aberta (o gráfico "escapa" pela abertura) -->
+  <path d="M396.9 216.7 A150 150 0 1 1 307.3 127.1" fill="none" stroke="url(#coin)" stroke-width="22" stroke-linecap="round"/>
+
+  <!-- Barras de crescimento -->
+  <rect x="170" y="306" width="44" height="50" rx="10" fill="url(#bar)"/>
+  <rect x="228" y="276" width="44" height="80" rx="10" fill="url(#bar)"/>
+  <rect x="286" y="244" width="44" height="112" rx="10" fill="url(#bar)"/>
+
+  <!-- Seta de tendência -->
+  <path d="M170 244 L240 196 L292 222 L402 110" fill="none" stroke="#5EEAB4" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M358 110 H402 V154" fill="none" stroke="#5EEAB4" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
