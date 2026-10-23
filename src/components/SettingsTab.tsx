@@ -18,6 +18,8 @@ import {
   FileText,
 } from 'lucide-react';
 import { SiriShortcutsGuide } from './SiriShortcutsGuide';
+import { Database, CloudUpload } from 'lucide-react';
+import { buildSyncPayload } from '../services/syncService';
 import {
   Account,
   AccountType,
@@ -630,6 +632,44 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               )}
             </div>
           </form>
+
+                    {/* Sincronização em Nuvem / PostgreSQL */}
+          <section className="editorial-card rounded-3xl p-5 space-y-3.5 bg-gradient-to-br from-white to-blue-50/40 border border-blue-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-neutral-950 flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-blue-600" /> PostgreSQL & Nuvem (DBeaver)
+                </h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Envie seus lançamentos para o banco de dados PostgreSQL conectado ao DBeaver
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const payload = buildSyncPayload(fullState);
+                  const res = await fetch('/api/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    notify('Dados gravados no PostgreSQL com sucesso!');
+                  } else {
+                    notify(data.message || 'Banco aguardando string de produção.');
+                  }
+                } catch {
+                  notify('Modo local: conecte a API ao banco PostgreSQL no Docker ou Nuvem.');
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-blue-950 text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-blue-900 active:scale-95 transition"
+            >
+              <CloudUpload className="w-3.5 h-3.5 text-blue-300" /> Sincronizar com PostgreSQL
+            </button>
+          </section>
 
           {/* Sincronização Offline Cross-Platform */}
           <section className="editorial-card rounded-3xl p-5 space-y-3.5 bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-100">
