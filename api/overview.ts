@@ -43,8 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'SELECT id, title, subtitle, target_amount, current_amount, benchmark, recommended_asset FROM financial_goals'
       );
 
-      const txsRes = await client.query(
-        SELECT t.id, t.type, t.description, t.amount, to_char(t.date, 'YYYY-MM-DD') as date, 
+      const txsRes = await client.query(SELECT t.id, t.type, t.description, t.amount, to_char(t.date, 'YYYY-MM-DD') as date, 
                 t.category_id, t.payment_method, t.status, t.tags
          FROM transactions t
          ORDER BY t.date DESC, t.created_at DESC
