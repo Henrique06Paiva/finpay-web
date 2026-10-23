@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(120) NOT NULL,
     email VARCHAR(255) UNIQUE,
+    password_hash VARCHAR(255),
     monthly_income_goal NUMERIC(15, 2) DEFAULT 0.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -143,19 +144,30 @@ INSERT INTO users (id, name, email, monthly_income_goal)
 VALUES ('a0000000-0000-0000-0000-000000000001', 'Henrique Paiva', 'henrique@finpay.app', 10000.00)
 ON CONFLICT (id) DO NOTHING;
 
--- Insere categorias padrão
+-- Insere categorias padrão completas do ecossistema
 INSERT INTO categories (id, name, kind, icon, color, is_custom) VALUES
-('salario', 'Salário & Remuneração', 'income', 'Briefcase', '#10B981', FALSE),
-('servicos', 'Serviços & Freelas', 'income', 'Laptop', '#3B82F6', FALSE),
-('rendimentos', 'Rendimentos de Investimento', 'income', 'TrendingUp', '#065F46', FALSE),
-('moradia', 'Moradia & Aluguel', 'expense', 'Home', '#6366F1', FALSE),
-('alimentacao', 'Alimentação & Restaurante', 'expense', 'Utensils', '#F59E0B', FALSE),
-('mercado', 'Supermercado', 'expense', 'ShoppingBag', '#8B5CF6', FALSE),
-('transporte', 'Transporte & Combustível', 'expense', 'Car', '#EC4899', FALSE),
-('saude', 'Saúde & Farmácia', 'expense', 'HeartPulse', '#EF4444', FALSE),
-('lazer', 'Lazer & Entretenimento', 'expense', 'Gamepad2', '#14B8A6', FALSE),
-('assinaturas', 'Assinaturas & Serviços', 'expense', 'Film', '#64748B', FALSE),
-('outros', 'Outros Gastos', 'expense', 'Tag', '#94A3B8', FALSE)
+('moradia', 'Moradia', 'expense', 'Home', '#55657A', FALSE),
+('contas', 'Contas & Serviços', 'expense', 'Zap', '#B8892E', FALSE),
+('mercado', 'Supermercado', 'expense', 'ShoppingCart', '#4F7F5A', FALSE),
+('alimentacao', 'Alimentação & Restaurante', 'expense', 'Utensils', '#C0643F', FALSE),
+('transporte', 'Transporte & Combustível', 'expense', 'Car', '#3F6E9A', FALSE),
+('saude', 'Saúde & Farmácia', 'expense', 'HeartPulse', '#B04A5A', FALSE),
+('educacao', 'Educação', 'expense', 'GraduationCap', '#6A5AA8', FALSE),
+('lazer', 'Lazer & Entretenimento', 'expense', 'Ticket', '#8E5BA6', FALSE),
+('compras', 'Compras', 'expense', 'ShoppingBag', '#C2577D', FALSE),
+('assinaturas', 'Assinaturas & Serviços', 'expense', 'Repeat', '#2F7F86', FALSE),
+('dividas', 'Dívidas & Parcelas', 'expense', 'Receipt', '#8C3B3B', FALSE),
+('pets', 'Pets & Animais', 'expense', 'PawPrint', '#8A6E4B', FALSE),
+('viagem', 'Viagem & Férias', 'expense', 'Plane', '#2E86AB', FALSE),
+('impostos', 'Impostos & Taxas', 'expense', 'Receipt', '#7A7A7A', FALSE),
+('outros', 'Outros Gastos', 'expense', 'MoreHorizontal', '#A3A3A3', FALSE),
+('salario', 'Salário & Remuneração', 'income', 'Briefcase', '#2F7D4F', FALSE),
+('freelance', 'Freelance & Bicos', 'income', 'Laptop', '#3D8A73', FALSE),
+('servicos', 'Serviços & Freelas', 'income', 'Briefcase', '#10B981', FALSE),
+('rendimentos', 'Rendimentos de Investimento', 'income', 'TrendingUp', '#5B8C2A', FALSE),
+('reembolso', 'Reembolso', 'income', 'RotateCcw', '#4C7EA8', FALSE),
+('presente', 'Presente', 'income', 'Gift', '#B5577A', FALSE),
+('outras_receitas', 'Outras Receitas', 'income', 'PlusCircle', '#6E8F7E', FALSE)
 ON CONFLICT (id) DO NOTHING;
 
 -- Insere contas padrão
