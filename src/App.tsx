@@ -19,6 +19,7 @@ import { currentYM, formatLongToday } from './utils/date';
 import { HomeDashboardTab } from './components/HomeDashboardTab';
 import { LockScreen } from './components/LockScreen';
 import { parseSiriShortcutUrl } from './services/syncService';
+import { haptic } from './services/hapticService';
 
 // Code-splitting (Lazy Loading) para manter o carregamento inicial instantâneo no iPhone
 const TransactionsTab = lazy(() =>
@@ -301,7 +302,7 @@ export function App() {
           </button>
 
           <button
-            onClick={() => handleOpenNewTx('expense')}
+            onClick={() => { haptic.tap(); handleOpenNewTx('expense'); }}
             className="h-9 px-3.5 rounded-full bg-neutral-950 text-white font-semibold text-xs flex items-center gap-1 active:scale-95 transition"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Lançar
@@ -496,7 +497,7 @@ export function App() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => { haptic.selection(); setActiveTab(item.id); }}
                 className={`py-2 px-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition ${
                   active
                     ? 'bg-neutral-950 text-white font-semibold shadow-xs'

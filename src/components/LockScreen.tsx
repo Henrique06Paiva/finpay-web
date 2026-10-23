@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Delete, ScanFace } from 'lucide-react';
 import { hashPin, verifyBiometrics } from '../services/securityService';
+import { haptic } from '../services/hapticService';
 
 interface LockScreenProps {
   expectedPinHash: string;
@@ -32,7 +33,12 @@ export const LockScreen: React.FC<LockScreenProps> = ({
 
   const handleBiometricUnlock = async () => {
     const ok = await verifyBiometrics(credentialId);
-    if (ok) onUnlock();
+    if (ok) {
+      haptic.success();
+      onUnlock();
+    } else {
+      haptic.error();
+    }
   };
 
   // Se o Face ID estiver ativo, já aciona automaticamente ao abrir a tela de bloqueio
@@ -44,6 +50,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
 
   const handleDigit = async (d: string) => {
     if (isLockedOut || digits.length >= 4) return;
+    haptic.tap();
     const next = digits + d;
     setDigits(next);
     setError(false);
@@ -51,10 +58,12 @@ export const LockScreen: React.FC<LockScreenProps> = ({
     if (next.length === 4) {
       const hashed = await hashPin(next);
       if (hashed === expectedPinHash) {
+        haptic.success();
         setDigits('');
         setFailedAttempts(0);
         onUnlock();
       } else {
+        haptic.error();
         const nextFailed = failedAttempts + 1;
         setFailedAttempts(nextFailed);
         setError(true);
@@ -149,7 +158,10 @@ export const LockScreen: React.FC<LockScreenProps> = ({
         </button>
 
         <button
-          onClick={() => setDigits((prev) => prev.slice(0, -1))}
+          onClick={() => {
+            haptic.tap();
+            setDigits((prev) => prev.slice(0, -1));
+          }}
           className="h-16 rounded-full flex items-center justify-center text-neutral-400 active:text-neutral-950 transition"
         >
           <Delete className="w-5 h-5" />

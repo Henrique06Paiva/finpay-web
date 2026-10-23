@@ -1,3 +1,4 @@
+import { haptic } from '../services/hapticService';
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import {
@@ -129,6 +130,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         ? 'Aporte em meta'
         : 'Lançamento');
 
+    haptic.success();
     onSave(
       {
         type,

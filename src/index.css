@@ -16,6 +16,11 @@ body {
   -webkit-tap-highlight-color: transparent;
   overflow-x: hidden;
   min-height: 100dvh;
+  /* Prevenção de elástico / bounce e pull-to-refresh nativo do Safari */
+  overscroll-behavior-y: none;
+  touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .safe-top {

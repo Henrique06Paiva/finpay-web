@@ -4,17 +4,65 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
     />
+    <!-- Configurações PWA Standalone para iOS (Safari) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="FinPay" />
     <meta name="theme-color" content="#F6F5F2" />
+    <meta name="format-detection" content="telephone=no" />
+
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" href="/icon.svg" />
+
+    <!-- Apple Touch Startup Images (Splash Screens para iPhone) -->
+    <!-- iPhone 16 Pro Max, 15 Pro Max, 14 Pro Max (430x932 @3x) -->
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/splash/apple-splash-1290-2796.png"
+    />
+    <!-- iPhone 16 Pro, 15 Pro, 14 Pro (393x852 @3x) -->
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/splash/apple-splash-1179-2556.png"
+    />
+    <!-- iPhone 14 Plus, 13 Pro Max, 12 Pro Max (428x926 @3x) -->
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/splash/apple-splash-1284-2778.png"
+    />
+    <!-- iPhone 14, 13, 13 Pro, 12, 12 Pro (390x844 @3x) -->
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/splash/apple-splash-1170-2532.png"
+    />
+    <!-- iPhone 11 Pro Max, XS Max (414x896 @3x) -->
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="/splash/apple-splash-1242-2688.png"
+    />
+    <!-- iPhone 11, XR (414x896 @2x) -->
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="/splash/apple-splash-828-1792.png"
+    />
+    <!-- iPhone SE 3rd/2nd, 8 (375x667 @2x) -->
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="/splash/apple-splash-750-1334.png"
+    />
+
     <title>FinPay — Finanças & Investimentos</title>
   </head>
   <body class="bg-[#F6F5F2] text-[#111111] antialiased">
