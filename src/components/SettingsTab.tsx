@@ -4,9 +4,12 @@ import {
   CheckCircle2,
   Download,
   Lock,
+  Mic,
   Plus,
+  QrCode,
   ScanFace,
   Shield,
+  Smartphone,
   Tags,
   Trash2,
   Upload,
@@ -14,6 +17,7 @@ import {
   Wallet,
   FileText,
 } from 'lucide-react';
+import { SiriShortcutsGuide } from './SiriShortcutsGuide';
 import {
   Account,
   AccountType,
@@ -62,6 +66,7 @@ interface SettingsTabProps {
   onLockNow: () => void;
   onResetAll: () => void;
   onOpenPayroll?: () => void;
+  onOpenSyncModal?: () => void;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -83,9 +88,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onLockNow,
   onResetAll,
   onOpenPayroll,
+  onOpenSyncModal,
 }) => {
   const [section, setSection] = useState<
-    'profile' | 'accounts' | 'categories' | 'notifications' | 'security'
+    'profile' | 'accounts' | 'categories' | 'notifications' | 'security' | 'shortcuts'
   >('accounts');
 
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -262,6 +268,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           [
             { id: 'accounts', label: 'Contas', icon: Wallet },
             { id: 'categories', label: 'Categorias', icon: Tags },
+            { id: 'shortcuts', label: 'Atalhos da Siri', icon: Mic },
             { id: 'security', label: 'Segurança & Face ID', icon: Shield },
             { id: 'notifications', label: 'Notificações', icon: Bell },
             { id: 'profile', label: 'Perfil', icon: User },
@@ -624,6 +631,27 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           </form>
 
+          {/* Sincronização Offline Cross-Platform */}
+          <section className="editorial-card rounded-3xl p-5 space-y-3.5 bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-neutral-950 flex items-center gap-1.5">
+                  <QrCode className="w-4 h-4 text-emerald-600" /> Sincronização Offline (QR Code)
+                </h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Transfira contas, dívidas e metas entre seu iPhone e o Android / PAX A910 sem internet
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenSyncModal}
+              className="w-full py-2.5 px-3 rounded-xl bg-neutral-950 text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-neutral-900 transition"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-emerald-400" /> Abrir Painel de Sincronização QR
+            </button>
+          </section>
+
           <section className="editorial-card rounded-3xl p-5 space-y-3.5">
             <div>
               <h3 className="text-sm font-bold text-neutral-950">
@@ -662,7 +690,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         </div>
       )}
 
-      {/* 4. ABA NOTIFICAÇÕES */}
+      {/* 4. ABA ATALHOS DA SIRI & WEBHOOKS */}
+      {section === 'shortcuts' && (
+        <SiriShortcutsGuide />
+      )}
+
+      {/* 5. ABA NOTIFICAÇÕES */}
       {section === 'notifications' && (
         <section className="editorial-card rounded-3xl p-5 space-y-4">
           <div className="flex items-center justify-between">

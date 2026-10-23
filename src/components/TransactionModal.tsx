@@ -16,6 +16,11 @@ interface TransactionModalProps {
   isOpen: boolean;
   defaultType?: TxType;
   editingTx?: Transaction | null;
+  initialValues?: {
+    amount?: number;
+    description?: string;
+    categoryId?: string;
+  } | null;
   accounts: Account[];
   categories: Category[];
   goals: StrategicGoal[];
@@ -31,6 +36,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   isOpen,
   defaultType = 'expense',
   editingTx = null,
+  initialValues = null,
   accounts,
   categories,
   goals,
@@ -79,21 +85,24 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setShowAdvanced(Boolean(editingTx.notes || (editingTx.tags && editingTx.tags.length > 0)));
     } else {
       setType(defaultType);
-      setDescription('');
-      setAmount('');
+      setDescription(initialValues?.description || '');
+      setAmount(initialValues?.amount ? toInputMoney(initialValues.amount) : '');
       setDate(todayISO());
-      setCategoryId(defaultType === 'income' ? 'salario' : 'alimentacao');
+      setCategoryId(
+        initialValues?.categoryId ||
+          (defaultType === 'income' ? 'salario' : 'alimentacao')
+      );
       setAccountId(accounts[0]?.id || 'principal');
       setToAccountId(accounts[1]?.id || accounts[0]?.id || 'carteira');
       setPaymentMethod('pix');
       setInstallments(1);
       setStatus('paid');
-      setTagsInput('');
-      setNotes('');
+      setTagsInput(initialValues ? 'siri, atalho' : '');
+      setNotes(initialValues ? 'Lançado via Atalho da Siri / iOS' : '');
       setGoalId('');
       setShowAdvanced(false);
     }
-  }, [editingTx, defaultType, isOpen, accounts]);
+  }, [editingTx, defaultType, isOpen, accounts, initialValues]);
 
   if (!isOpen) return null;
 

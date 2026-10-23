@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   Eye,
@@ -18,6 +18,7 @@ import { useFinanceStore } from './hooks/useFinanceStore';
 import { currentYM, formatLongToday } from './utils/date';
 import { HomeDashboardTab } from './components/HomeDashboardTab';
 import { LockScreen } from './components/LockScreen';
+import { parseSiriShortcutUrl } from './services/syncService';
 
 // Code-splitting (Lazy Loading) para manter o carregamento inicial instantâneo no iPhone
 const TransactionsTab = lazy(() =>
@@ -43,6 +44,9 @@ const OpenFinanceModal = lazy(() =>
 );
 const PayrollModal = lazy(() =>
   import('./components/PayrollModal').then((m) => ({ default: m.PayrollModal }))
+);
+const SyncModal = lazy(() =>
+  import('./components/SyncModal').then((m) => ({ default: m.SyncModal }))
 );
 
 const NAV_ITEMS: Array<{
@@ -114,8 +118,39 @@ export function App() {
   const [txModalOpen, setTxModalOpen] = useState<boolean>(false);
   const [txModalDefaultType, setTxModalDefaultType] = useState<TxType>('expense');
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [shortcutInitialValues, setShortcutInitialValues] = useState<{
+    amount?: number;
+    description?: string;
+    categoryId?: string;
+  } | null>(null);
+
   const [openFinanceOpen, setOpenFinanceOpen] = useState<boolean>(false);
   const [payrollModalOpen, setPayrollModalOpen] = useState<boolean>(false);
+  const [syncModalOpen, setSyncModalOpen] = useState<boolean>(false);
+
+  // Trata parâmetros de inicialização de Atalhos da Siri ou Webhooks (ex: ?add=expense&val=50&desc=Almoco)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const shortcut = parseSiriShortcutUrl(window.location.search);
+    if (!shortcut) return;
+
+    if (shortcut.action === 'add_tx') {
+      setEditingTx(null);
+      setTxModalDefaultType(shortcut.type || 'expense');
+      setShortcutInitialValues({
+        amount: shortcut.amount,
+        description: shortcut.description,
+        categoryId: shortcut.category,
+      });
+      setTxModalOpen(true);
+    } else if (shortcut.action === 'view_tab' && shortcut.tab) {
+      const match = NAV_ITEMS.find((n) => n.id === shortcut.tab);
+      if (match) setActiveTab(match.id);
+    }
+
+    // Limpa a query string da URL sem recarregar a página
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }, []);
 
   const currentNavMeta = useMemo(
     () => NAV_ITEMS.find((n) => n.id === activeTab) || NAV_ITEMS[0],
@@ -124,6 +159,7 @@ export function App() {
 
   const handleOpenNewTx = (defaultType: TxType = 'expense') => {
     setEditingTx(null);
+    setShortcutInitialValues(null);
     setTxModalDefaultType(defaultType);
     setTxModalOpen(true);
   };
@@ -390,6 +426,7 @@ export function App() {
               onLockNow={() => setIsLocked(true)}
               onResetAll={store.resetAll}
               onOpenPayroll={() => setPayrollModalOpen(true)}
+              onOpenSyncModal={() => setSyncModalOpen(true)}
             />
           )}
         </Suspense>
@@ -402,12 +439,14 @@ export function App() {
             isOpen={txModalOpen}
             defaultType={txModalDefaultType}
             editingTx={editingTx}
+            initialValues={shortcutInitialValues}
             accounts={state.accounts}
             categories={state.categories}
             goals={state.goals}
             onClose={() => {
               setTxModalOpen(false);
               setEditingTx(null);
+              setShortcutInitialValues(null);
             }}
             onSave={store.saveTransaction}
           />
@@ -435,6 +474,15 @@ export function App() {
             accounts={state.accounts}
             onClose={() => setPayrollModalOpen(false)}
             onUpdatePayroll={store.updatePayroll}
+          />
+        )}
+
+        {syncModalOpen && (
+          <SyncModal
+            isOpen={syncModalOpen}
+            onClose={() => setSyncModalOpen(false)}
+            fullState={state}
+            onApplyState={store.restoreState}
           />
         )}
       </Suspense>
