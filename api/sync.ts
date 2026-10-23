@@ -1,5 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { pool } from './_db';
+import { Pool } from 'pg';
+
+const connectionString =
+  process.env.POSTGRES_URL ||
+  process.env.DATABASE_URL ||
+  'postgresql://finpay_admin:finpay_secret_password@localhost:5432/finpay_db';
+
+const isLocal =
+  connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+
+const pool = new Pool({
+  connectionString,
+  ssl: isLocal ? false : { rejectUnauthorized: false },
+  max: 5,
+  connectionTimeoutMillis: 5000,
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -23,7 +38,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await client.query('BEGIN');
 
-    // Recupera ou cria usuário padrão
     const userRes = await client.query('SELECT id FROM users LIMIT 1');
     let userId = userRes.rows[0]?.id;
     if (!userId) {
@@ -33,23 +47,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userId = newUser.rows[0].id;
     }
 
-    // 1. Sincroniza Contas Bancárias
     if (Array.isArray(payload.accounts)) {
       for (const acc of payload.accounts) {
         await client.query(
-          `INSERT INTO bank_accounts (user_id, name, account_type, initial_balance, current_balance)
-           VALUES ($1, $2, $3, $4, $4)
-           ON CONFLICT DO NOTHING`,
+          INSERT INTO bank_accounts (user_id, name, account_type, initial_balance, current_balance)
+           VALUES (, , , , )
+           ON CONFLICT DO NOTHING,
           [userId, acc.name, 'checking', Number(acc.balance || 0)]
         );
       }
     }
 
-    // Recupera uma conta padrão para associar as transações
-    const defaultAcc = await client.query('SELECT id FROM bank_accounts WHERE user_id = $1 LIMIT 1', [userId]);
+    const defaultAcc = await client.query('SELECT id FROM bank_accounts WHERE user_id =  LIMIT 1', [userId]);
     const accountId = defaultAcc.rows[0]?.id;
 
-    // 2. Sincroniza Transações (evita duplicações)
     let importedTxs = 0;
     for (const tx of payload.transactions) {
       const type = tx.isIncome ? 'income' : 'expense';
@@ -58,10 +69,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const date = tx.date || new Date().toISOString().slice(0, 10);
       const cat = tx.category || 'outros';
 
-      // Grava transação
       await client.query(
-        `INSERT INTO transactions (user_id, account_id, category_id, type, description, amount, date, payment_method, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        INSERT INTO transactions (user_id, account_id, category_id, type, description, amount, date, payment_method, status)
+         VALUES (, , , , , , , , ),
         [userId, accountId, cat, type, desc, amt, date, 'pix', 'paid']
       );
       importedTxs++;

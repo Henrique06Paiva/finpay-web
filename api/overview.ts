@@ -1,5 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { pool } from './_db';
+import { Pool } from 'pg';
+
+const connectionString =
+  process.env.POSTGRES_URL ||
+  process.env.DATABASE_URL ||
+  'postgresql://finpay_admin:finpay_secret_password@localhost:5432/finpay_db';
+
+const isLocal =
+  connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+
+const pool = new Pool({
+  connectionString,
+  ssl: isLocal ? false : { rejectUnauthorized: false },
+  max: 5,
+  connectionTimeoutMillis: 5000,
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,32 +28,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const client = await pool.connect();
     try {
-      // 1. Resumo financeiro consolidado da view analítica
       const overviewRes = await client.query('SELECT * FROM view_user_financial_overview LIMIT 1');
       const overview = overviewRes.rows[0] || {};
 
-      // 2. Contas bancárias
       const accountsRes = await client.query(
         'SELECT id, name, account_type, initial_balance, current_balance, color FROM bank_accounts WHERE is_archived = FALSE'
       );
 
-      // 3. Dívidas ativas
       const debtsRes = await client.query(
         'SELECT id, name, creditor, kind, amortization_system, current_balance, monthly_interest_rate, total_installments, monthly_payment FROM debt_contracts'
       );
 
-      // 4. Metas financeiras
       const goalsRes = await client.query(
         'SELECT id, title, subtitle, target_amount, current_amount, benchmark, recommended_asset FROM financial_goals'
       );
 
-      // 5. Últimas 20 transações
       const txsRes = await client.query(
-        `SELECT t.id, t.type, t.description, t.amount, to_char(t.date, 'YYYY-MM-DD') as date, 
+        SELECT t.id, t.type, t.description, t.amount, to_char(t.date, 'YYYY-MM-DD') as date, 
                 t.category_id, t.payment_method, t.status, t.tags
          FROM transactions t
          ORDER BY t.date DESC, t.created_at DESC
-         LIMIT 20`
+         LIMIT 20
       );
 
       return res.status(200).json({

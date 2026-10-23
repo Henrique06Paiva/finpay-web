@@ -1,5 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { pool } from './_db';
+import { Pool } from 'pg';
+
+const connectionString =
+  process.env.POSTGRES_URL ||
+  process.env.DATABASE_URL ||
+  'postgresql://finpay_admin:finpay_secret_password@localhost:5432/finpay_db';
+
+const isLocal =
+  connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+
+const pool = new Pool({
+  connectionString,
+  ssl: isLocal ? false : { rejectUnauthorized: false },
+  max: 5,
+  connectionTimeoutMillis: 5000,
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,8 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.status(200).json({
         status: 'online',
-        service: 'FinPay PostgreSQL API',
-        environment: process.env.NODE_ENV || 'production',
+        service: 'FinPay PostgreSQL Neon Cloud API',
         database: {
           connected: true,
           serverTime: result.rows[0].db_time,
