@@ -154,7 +154,7 @@ export function App() {
                 <div className="flex items-center gap-3">
                   <img
                     src="/icon.svg"
-                    alt="Aura Finanças Logo"
+                    alt="FinPay Logo"
                     className="w-10 h-10 rounded-2xl object-cover shadow-md shadow-emerald-950/40 border border-white/10 flex-shrink-0"
                   />
                   <div>
@@ -162,7 +162,7 @@ export function App() {
                       Navegação Principal
                     </p>
                     <h2 className="text-lg font-bold text-white mt-0.5">
-                      Aura Finanças
+                      FinPay
                     </h2>
                   </div>
                 </div>

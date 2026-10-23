@@ -1,7 +1,7 @@
 {
-  "name": "Aura Finanças — Gestão & Estratégia",
-  "short_name": "Aura Finanças",
-  "description": "Sistema leve e seguro de finanças pessoais, mercado diário e planos estratégicos para iPhone.",
+  "name": "FinPay — Finanças & Investimentos",
+  "short_name": "FinPay",
+  "description": "Organização financeira diária, folha CLT automática e análise de investimentos.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#051C22",

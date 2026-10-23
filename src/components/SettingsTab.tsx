@@ -216,7 +216,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `financas-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `finpay-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     notify('Backup exportado para seus Arquivos.');

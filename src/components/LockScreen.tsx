@@ -72,10 +72,10 @@ export const LockScreen: React.FC<LockScreenProps> = ({
     <div className="fixed inset-0 z-50 bg-[#F6F5F2] flex flex-col items-center justify-center px-6 select-none">
       <img
         src="/icon.svg"
-        alt="Aura Finanças"
+        alt="FinPay"
         className="w-16 h-16 rounded-2xl mb-4 shadow-xl shadow-emerald-950/20 border border-black/5"
       />
-      <h1 className="text-lg font-bold text-neutral-950">Aura Finanças</h1>
+      <h1 className="text-lg font-bold text-neutral-950">FinPay</h1>
       <p className="text-xs text-neutral-500 mt-1 mb-8">
         {isLockedOut ? (
           <span className="text-red-600 font-semibold">
