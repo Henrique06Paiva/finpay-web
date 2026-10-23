@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import {
+  AlertCircle,
   Bell,
   CheckCircle2,
+  CloudUpload,
+  Database,
   Download,
+  FileText,
   Lock,
+  LogOut,
   Mic,
   Plus,
   QrCode,
+  RefreshCw,
   ScanFace,
   Shield,
   Smartphone,
@@ -14,11 +20,10 @@ import {
   Trash2,
   Upload,
   User,
+  UserCheck,
   Wallet,
-  FileText,
 } from 'lucide-react';
 import { SiriShortcutsGuide } from './SiriShortcutsGuide';
-import { Database, CloudUpload, UserCheck, LogOut } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { buildSyncPayload } from '../services/syncService';
 import {
@@ -103,11 +108,67 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     }
   });
 
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+
   const [section, setSection] = useState<
-    'profile' | 'accounts' | 'categories' | 'notifications' | 'security' | 'shortcuts'
-  >('accounts');
+    'cloud' | 'accounts' | 'categories' | 'shortcuts' | 'security' | 'notifications' | 'profile'
+  >('cloud');
 
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const handleLogout = () => {
+    localStorage.removeItem('finpay_auth_token');
+    localStorage.removeItem('finpay_auth_user');
+    setAuthUser(null);
+    setSyncStatus(null);
+    notify('Você saiu da sua conta. Seus dados continuam salvos neste dispositivo.');
+  };
+
+  const handleSyncWithPostgres = async () => {
+    setIsSyncing(true);
+    setSyncStatus(null);
+    try {
+      const token = localStorage.getItem('finpay_auth_token');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const payload = buildSyncPayload(fullState);
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSyncStatus({
+          ok: true,
+          msg: `Sincronizado! ${data.importedTransactions ?? payload.transactions.length} lançamentos gravados no PostgreSQL Neon.`,
+        });
+        notify('Sincronização com o Neon PostgreSQL concluída com sucesso!');
+      } else {
+        const errMsg = data.error || data.message || data.detail || 'Falha ao sincronizar com o banco.';
+        setSyncStatus({
+          ok: false,
+          msg: errMsg,
+        });
+        notify(`Erro na sincronização: ${errMsg}`);
+      }
+    } catch (err: any) {
+      setSyncStatus({
+        ok: false,
+        msg: err?.message || 'Erro de conexão com a API de sincronização.',
+      });
+      notify('Falha ao conectar com o servidor PostgreSQL.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Perfil
   const [userName, setUserName] = useState(prefs.profile?.name || '');
@@ -256,6 +317,115 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     e.target.value = '';
   };
 
+  const renderCloudCard = () => (
+    <section className="editorial-card rounded-3xl p-5 space-y-4 bg-gradient-to-br from-white via-blue-50/20 to-emerald-50/20 border border-blue-100 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-[#0F3D3E] text-[#5EEAB4] flex items-center justify-center flex-shrink-0 shadow-xs">
+            <Database className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-neutral-950">Nuvem & PostgreSQL</h3>
+              {authUser ? (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Conectado
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                  Modo Local (Offline)
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {authUser
+                ? `Logado como ${authUser.name} (${authUser.email})`
+                : 'Seus dados estão salvos apenas neste aparelho. Conecte sua conta para salvar na nuvem.'}
+            </p>
+          </div>
+        </div>
+
+        {authUser && (
+          <button
+            onClick={handleLogout}
+            title="Sair da Conta"
+            className="p-2 rounded-xl text-neutral-400 hover:text-red-600 hover:bg-neutral-100 transition"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {syncStatus && (
+        <div
+          className={`p-3 rounded-2xl text-xs font-medium flex items-center gap-2 ${
+            syncStatus.ok
+              ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+              : 'bg-red-50 text-red-900 border border-red-200'
+          }`}
+        >
+          {syncStatus.ok ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+          )}
+          <span className="flex-1 leading-snug">{syncStatus.msg}</span>
+        </div>
+      )}
+
+      <div className="space-y-2 pt-1">
+        {authUser ? (
+          <button
+            type="button"
+            onClick={handleSyncWithPostgres}
+            disabled={isSyncing}
+            className="w-full py-3 px-4 rounded-2xl bg-neutral-950 text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-neutral-900 active:scale-[0.99] transition disabled:opacity-60 shadow-sm"
+          >
+            {isSyncing ? (
+              <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
+            ) : (
+              <CloudUpload className="w-4 h-4 text-emerald-400" />
+            )}
+            {isSyncing ? 'Gravando no Neon PostgreSQL...' : 'Sincronizar Meus Dados Agora'}
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(true)}
+              className="w-full py-3 px-4 rounded-2xl bg-[#0F3D3E] text-white font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#0c2f30] active:scale-[0.99] transition shadow-sm"
+            >
+              <UserCheck className="w-4 h-4 text-[#5EEAB4]" /> Entrar ou Criar Minha Conta Privada
+            </button>
+            <button
+              type="button"
+              onClick={handleSyncWithPostgres}
+              disabled={isSyncing}
+              className="w-full py-2.5 px-3 rounded-xl bg-neutral-100 text-neutral-700 font-semibold text-xs flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.99] transition disabled:opacity-60"
+            >
+              {isSyncing ? (
+                <RefreshCw className="w-3.5 h-3.5 text-neutral-500 animate-spin" />
+              ) : (
+                <CloudUpload className="w-3.5 h-3.5 text-neutral-500" />
+              )}
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar como Visitante / Convidado'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="pt-2 border-t border-neutral-100/80 flex items-center justify-between text-[11px] text-neutral-500">
+        <span className="flex items-center gap-1 font-mono text-[10px] text-neutral-600 truncate max-w-[220px]">
+          Neon PostgreSQL · AWS SP
+        </span>
+        <span className="text-[10px] font-semibold text-neutral-400">
+          SSL Ativo · Isolamento UUID
+        </span>
+      </div>
+    </section>
+  );
+
   return (
     <div className="space-y-5 pb-10 animate-view">
       {/* Cabeçalho da Tela de Configurações */}
@@ -279,6 +449,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         )}
         {(
           [
+            { id: 'cloud', label: 'Nuvem & Conta', icon: Database },
             { id: 'accounts', label: 'Contas', icon: Wallet },
             { id: 'categories', label: 'Categorias', icon: Tags },
             { id: 'shortcuts', label: 'Atalhos da Siri', icon: Mic },
@@ -310,6 +481,58 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         <div className="p-3.5 rounded-2xl bg-neutral-900 text-white text-xs font-medium flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>{statusMsg}</span>
+        </div>
+      )}
+
+      {/* 0. ABA NUVEM & CONTA POSTGRESQL */}
+      {section === 'cloud' && (
+        <div className="space-y-4">
+          {renderCloudCard()}
+
+          {/* Sincronização Offline Cross-Platform */}
+          <section className="editorial-card rounded-3xl p-5 space-y-3.5 bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-neutral-950 flex items-center gap-1.5">
+                  <QrCode className="w-4 h-4 text-emerald-600" /> Sincronização Offline (QR Code)
+                </h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Transfira contas, dívidas e metas entre seu iPhone e o Android / PAX A910 sem internet
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenSyncModal}
+              className="w-full py-2.5 px-3 rounded-xl bg-neutral-950 text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-neutral-900 transition"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-emerald-400" /> Abrir Painel de Sincronização QR
+            </button>
+          </section>
+
+          {/* Backup Local & Restauração */}
+          <section className="editorial-card rounded-3xl p-5 space-y-3.5">
+            <div>
+              <h3 className="text-sm font-bold text-neutral-950">
+                Backup Local & Restauração (iCloud / Arquivos)
+              </h3>
+              <p className="text-xs text-neutral-500">
+                Exporte seus dados para guardar uma cópia segura ou restaurar em outro aparelho
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                onClick={handleExport}
+                className="py-2.5 px-3 rounded-xl bg-[#F6F5F2] text-neutral-900 font-semibold text-xs flex items-center justify-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" /> Exportar JSON
+              </button>
+              <label className="py-2.5 px-3 rounded-xl bg-[#F6F5F2] text-neutral-900 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                <Upload className="w-3.5 h-3.5" /> Importar JSON
+                <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+              </label>
+            </div>
+          </section>
         </div>
       )}
 
@@ -644,43 +867,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           </form>
 
-                    {/* Sincronização em Nuvem / PostgreSQL */}
-          <section className="editorial-card rounded-3xl p-5 space-y-3.5 bg-gradient-to-br from-white to-blue-50/40 border border-blue-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-neutral-950 flex items-center gap-1.5">
-                  <Database className="w-4 h-4 text-blue-600" /> PostgreSQL & Nuvem (DBeaver)
-                </h3>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  Envie seus lançamentos para o banco de dados PostgreSQL conectado ao DBeaver
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const payload = buildSyncPayload(fullState);
-                  const res = await fetch('/api/sync', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                  });
-                  const data = await res.json();
-                  if (data.success) {
-                    notify('Dados gravados no PostgreSQL com sucesso!');
-                  } else {
-                    notify(data.message || 'Banco aguardando string de produção.');
-                  }
-                } catch {
-                  notify('Modo local: conecte a API ao banco PostgreSQL no Docker ou Nuvem.');
-                }
-              }}
-              className="w-full py-2.5 px-3 rounded-xl bg-blue-950 text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-blue-900 active:scale-95 transition"
-            >
-              <CloudUpload className="w-3.5 h-3.5 text-blue-300" /> Sincronizar com PostgreSQL
-            </button>
-          </section>
+          {/* Sincronização em Nuvem / PostgreSQL */}
+          {renderCloudCard()}
 
           {/* Sincronização Offline Cross-Platform */}
           <section className="editorial-card rounded-3xl p-5 space-y-3.5 bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-100">
