@@ -1,0 +1,4 @@
+FROM postgres:16-alpine
+
+# Copia o script SQL diretamente para a imagem, eliminando o erro de File Sharing do Windows
+COPY database/init.sql /docker-entrypoint-initdb.d/init.sql
