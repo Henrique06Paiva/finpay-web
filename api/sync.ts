@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool } from 'pg';
+import jwt from 'jsonwebtoken';
 
 const connectionString =
   process.env.POSTGRES_URL ||
@@ -16,10 +17,24 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
+const JWT_SECRET = process.env.JWT_SECRET || 'finpay_jwt_secret_token_key_2026_super_secure_vault';
+
+function getUserIdFromRequest(req: VercelRequest): string | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    return decoded.userId;
+  } catch {
+    return null;
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -36,31 +51,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    // 1. Obtém o ID do usuário pelo Token JWT autenticado
+    let userId = getUserIdFromRequest(req);
 
-    const userRes = await client.query('SELECT id FROM users LIMIT 1');
-    let userId = userRes.rows[0]?.id;
     if (!userId) {
-      const newUser = await client.query(
-        "INSERT INTO users (name, email) VALUES ('Titular FinPay', 'titular@finpay.app') RETURNING id"
-      );
-      userId = newUser.rows[0].id;
+      // Fallback para usuário demo se não estiver logado
+      const userRes = await client.query('SELECT id FROM users LIMIT 1');
+      userId = userRes.rows[0]?.id;
     }
 
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuário não autenticado.' });
+    }
+
+    await client.query('BEGIN');
+
+    // 2. Sincroniza Contas Bancárias (isoladas pelo user_id)
     if (Array.isArray(payload.accounts)) {
       for (const acc of payload.accounts) {
         await client.query(
-          INSERT INTO bank_accounts (user_id, name, account_type, initial_balance, current_balance)
-           VALUES (, , , , )
-           ON CONFLICT DO NOTHING,
+          `INSERT INTO bank_accounts (user_id, name, account_type, initial_balance, current_balance)
+           VALUES ($1, $2, $3, $4, $4)
+           ON CONFLICT DO NOTHING`,
           [userId, acc.name, 'checking', Number(acc.balance || 0)]
         );
       }
     }
 
-    const defaultAcc = await client.query('SELECT id FROM bank_accounts WHERE user_id =  LIMIT 1', [userId]);
+    // Busca a conta padrão do usuário para associar transações
+    const defaultAcc = await client.query(
+      'SELECT id FROM bank_accounts WHERE user_id = $1 LIMIT 1',
+      [userId]
+    );
     const accountId = defaultAcc.rows[0]?.id;
 
+    // 3. Sincroniza Transações (estritamente atreladas ao user_id)
     let importedTxs = 0;
     for (const tx of payload.transactions) {
       const type = tx.isIncome ? 'income' : 'expense';
@@ -70,8 +95,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const cat = tx.category || 'outros';
 
       await client.query(
-        INSERT INTO transactions (user_id, account_id, category_id, type, description, amount, date, payment_method, status)
-         VALUES (, , , , , , , , ),
+        `INSERT INTO transactions (user_id, account_id, category_id, type, description, amount, date, payment_method, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [userId, accountId, cat, type, desc, amt, date, 'pix', 'paid']
       );
       importedTxs++;
@@ -81,7 +106,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       success: true,
-      message: 'Sincronização com PostgreSQL concluída com sucesso!',
+      message: 'Sincronização com PostgreSQL concluída!',
+      userId,
       importedTransactions: importedTxs,
       syncedAt: new Date().toISOString(),
     });
@@ -89,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await client.query('ROLLBACK');
     return res.status(500).json({
       success: false,
-      message: 'Erro durante a transação no PostgreSQL.',
+      message: 'Erro durante a sincronização.',
       detail: err?.message,
     });
   } finally {

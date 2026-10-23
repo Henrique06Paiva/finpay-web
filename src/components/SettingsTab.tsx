@@ -18,7 +18,8 @@ import {
   FileText,
 } from 'lucide-react';
 import { SiriShortcutsGuide } from './SiriShortcutsGuide';
-import { Database, CloudUpload } from 'lucide-react';
+import { Database, CloudUpload, UserCheck, LogOut } from 'lucide-react';
+import { AuthModal } from './AuthModal';
 import { buildSyncPayload } from '../services/syncService';
 import {
   Account,
@@ -92,6 +93,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onOpenPayroll,
   onOpenSyncModal,
 }) => {
+    const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<{ id: string; name: string; email: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem('finpay_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [section, setSection] = useState<
     'profile' | 'accounts' | 'categories' | 'notifications' | 'security' | 'shortcuts'
   >('accounts');
@@ -830,6 +841,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </button>
         </form>
       )}
+          <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onLoginSuccess={(user) => {
+          setAuthUser(user);
+          notify('Bem-vindo(a), ' + user.name + '! Seu cofre está isolado.');
+        }}
+      />
     </div>
   );
 };
