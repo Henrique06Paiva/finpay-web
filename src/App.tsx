@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
+  ChevronRight,
   Eye,
   EyeOff,
   Landmark,
@@ -8,6 +9,7 @@ import {
   Menu,
   Plus,
   SlidersHorizontal,
+  Sparkles,
   Target,
   Wallet,
   X,
@@ -20,6 +22,7 @@ import { HomeDashboardTab } from './components/HomeDashboardTab';
 import { LockScreen } from './components/LockScreen';
 import { parseSiriShortcutUrl } from './services/syncService';
 import { haptic } from './services/hapticService';
+import { CURRENT_SYSTEM_VERSION } from './data/version';
 
 // Code-splitting (Lazy Loading) para manter o carregamento inicial instantâneo no iPhone
 const TransactionsTab = lazy(() =>
@@ -48,6 +51,9 @@ const PayrollModal = lazy(() =>
 );
 const SyncModal = lazy(() =>
   import('./components/SyncModal').then((m) => ({ default: m.SyncModal }))
+);
+const UpdatesModal = lazy(() =>
+  import('./components/UpdatesModal').then((m) => ({ default: m.UpdatesModal }))
 );
 
 const NAV_ITEMS: Array<{
@@ -128,6 +134,36 @@ export function App() {
   const [openFinanceOpen, setOpenFinanceOpen] = useState<boolean>(false);
   const [payrollModalOpen, setPayrollModalOpen] = useState<boolean>(false);
   const [syncModalOpen, setSyncModalOpen] = useState<boolean>(false);
+
+  // Alerta de Atualizações & Novidades do Sistema
+  const [updatesModalOpen, setUpdatesModalOpen] = useState<boolean>(false);
+  const [settingsInitialSection, setSettingsInitialSection] = useState<
+    'cloud' | 'accounts' | 'categories' | 'shortcuts' | 'security' | 'notifications' | 'profile' | undefined
+  >(undefined);
+  const [hasUnreadUpdates, setHasUnreadUpdates] = useState<boolean>(() => {
+    try {
+      const lastSeen = localStorage.getItem('finpay_last_seen_version');
+      return lastSeen !== CURRENT_SYSTEM_VERSION;
+    } catch {
+      return true;
+    }
+  });
+  const [bannerDismissed, setBannerDismissed] = useState<boolean>(false);
+
+  const handleOpenUpdatesModal = () => {
+    haptic.tap();
+    setUpdatesModalOpen(true);
+  };
+
+  const handleNavigateToProfileSettings = () => {
+    setSettingsInitialSection('profile');
+    setActiveTab('settings');
+    setUpdatesModalOpen(false);
+    setHasUnreadUpdates(false);
+    try {
+      localStorage.setItem('finpay_last_seen_version', CURRENT_SYSTEM_VERSION);
+    } catch {}
+  };
 
   // Trata parâmetros de inicialização de Atalhos da Siri ou Webhooks (ex: ?add=expense&val=50&desc=Almoco)
   useEffect(() => {
@@ -247,6 +283,36 @@ export function App() {
                   );
                 })}
               </nav>
+
+              <div className="pt-3 border-t border-white/10">
+                <button
+                  onClick={() => {
+                    setDrawerOpen(false);
+                    handleOpenUpdatesModal();
+                  }}
+                  className="w-full text-left p-3 rounded-2xl flex items-center justify-between transition bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-white/10 text-neutral-300 hover:bg-white/10"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                        Novidades do Sistema
+                        {hasUnreadUpdates && (
+                          <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-white text-[9px] font-bold">
+                            Novo
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[10px] text-neutral-400">
+                        Modo Casal, Nuvem e Atualizações
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-neutral-500" />
+                </button>
+              </div>
             </div>
 
             <div className="pt-4 border-t border-white/10 text-[11px] text-neutral-400 flex items-center justify-between">
@@ -281,6 +347,21 @@ export function App() {
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Botão de Atualizações & Novidades (Sempre disponível) */}
+          <button
+            onClick={handleOpenUpdatesModal}
+            className="relative w-9 h-9 rounded-full bg-white border border-neutral-200/80 flex items-center justify-center text-neutral-700 active:scale-90 transition hover:bg-neutral-50"
+            title="Atualizações & Novidades do Sistema"
+          >
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            {hasUnreadUpdates && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-pink-600 border border-white" />
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setActiveTab('settings')}
             className={`w-9 h-9 rounded-full flex items-center justify-center transition ${
@@ -309,6 +390,52 @@ export function App() {
           </button>
         </div>
       </header>
+
+      {/* ==================== MINI ALERTA DE NOTIFICAÇÃO DE ATUALIZAÇÕES ==================== */}
+      {hasUnreadUpdates && !bannerDismissed && (
+        <div className="px-4 pt-2.5 pb-1 animate-view">
+          <div className="p-3 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white shadow-md flex items-center justify-between gap-2.5">
+            <div
+              onClick={handleOpenUpdatesModal}
+              className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
+            >
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 backdrop-blur-xs">
+                <Sparkles className="w-4 h-4 text-amber-300" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider bg-white/20 px-1.5 py-0.2 rounded-md">
+                    Nova Atualização
+                  </span>
+                  <span className="text-[10px] text-pink-100 font-semibold">v2.2</span>
+                </div>
+                <p className="text-xs font-bold truncate mt-0.5">
+                  💑 Modo Casal & Conta Conjunta disponível!
+                </p>
+                <p className="text-[10px] text-pink-100 truncate">
+                  Toque para ver como ativar em Ajustes ➔ Perfil
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={handleOpenUpdatesModal}
+                className="px-2.5 py-1.5 rounded-xl bg-white text-neutral-900 text-[11px] font-bold shadow-xs active:scale-95 transition"
+              >
+                Ver
+              </button>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+                title="Dispensar alerta"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ==================== CONTEÚDO MOBILE ==================== */}
       <main className="flex-1 px-4 pt-3 pb-28">
@@ -430,6 +557,7 @@ export function App() {
               onResetAll={store.resetAll}
               onOpenPayroll={() => setPayrollModalOpen(true)}
               onOpenSyncModal={() => setSyncModalOpen(true)}
+              initialSection={settingsInitialSection}
             />
           )}
         </Suspense>
@@ -487,6 +615,22 @@ export function App() {
             onClose={() => setSyncModalOpen(false)}
             fullState={state}
             onApplyState={store.restoreState}
+          />
+        )}
+
+        {updatesModalOpen && (
+          <UpdatesModal
+            isOpen={updatesModalOpen}
+            onClose={() => {
+              setUpdatesModalOpen(false);
+              try {
+                const lastSeen = localStorage.getItem('finpay_last_seen_version');
+                if (lastSeen === CURRENT_SYSTEM_VERSION) {
+                  setHasUnreadUpdates(false);
+                }
+              } catch {}
+            }}
+            onNavigateToProfileSettings={handleNavigateToProfileSettings}
           />
         )}
       </Suspense>

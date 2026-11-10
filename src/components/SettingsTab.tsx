@@ -77,6 +77,7 @@ interface SettingsTabProps {
   onResetAll: () => void;
   onOpenPayroll?: () => void;
   onOpenSyncModal?: () => void;
+  initialSection?: 'cloud' | 'accounts' | 'categories' | 'shortcuts' | 'security' | 'notifications' | 'profile';
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -99,6 +100,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onResetAll,
   onOpenPayroll,
   onOpenSyncModal,
+  initialSection,
 }) => {
     const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authUser, setAuthUser] = useState<{ id: string; name: string; email: string } | null>(() => {
@@ -115,7 +117,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   const [section, setSection] = useState<
     'cloud' | 'accounts' | 'categories' | 'shortcuts' | 'security' | 'notifications' | 'profile'
-  >('cloud');
+  >(initialSection || 'cloud');
+
+  useEffect(() => {
+    if (initialSection) {
+      setSection(initialSection);
+    }
+  }, [initialSection]);
 
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
