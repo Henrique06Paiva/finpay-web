@@ -3,12 +3,14 @@ import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
+  Heart,
   Lock,
   LogIn,
   Mail,
   ShieldCheck,
   User,
   UserPlus,
+  Users,
   X,
 } from 'lucide-react';
 import { haptic } from '../services/hapticService';
@@ -16,7 +18,15 @@ import { haptic } from '../services/hapticService';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: (user: { id: string; name: string; email: string }, token: string) => void;
+  onLoginSuccess: (
+    user: { id: string; name: string; email: string },
+    token: string,
+    coupleConfig?: {
+      isCoupleMode: boolean;
+      partner1Name: string;
+      partner2Name: string;
+    }
+  ) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -28,6 +38,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isCoupleAccount, setIsCoupleAccount] = useState(false);
+  const [partnerName, setPartnerName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -40,7 +52,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       const endpoint = mode === 'register' ? '/api/register' : '/api/login';
-      const body = mode === 'register' ? { name, email, password } : { email, password };
+      const registerDisplayName = isCoupleAccount && partnerName.trim()
+        ? `${name.trim()} & ${partnerName.trim()}`
+        : name.trim();
+
+      const body =
+        mode === 'register'
+          ? { name: registerDisplayName, email, password }
+          : { email, password };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -59,7 +78,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       localStorage.setItem('finpay_auth_token', data.token);
       localStorage.setItem('finpay_auth_user', JSON.stringify(data.user));
 
-      onLoginSuccess(data.user, data.token);
+      const coupleConfig =
+        mode === 'register' && isCoupleAccount
+          ? {
+              isCoupleMode: true,
+              partner1Name: name.trim() || 'Ele',
+              partner2Name: partnerName.trim() || 'Ela',
+            }
+          : undefined;
+
+      onLoginSuccess(data.user, data.token, coupleConfig);
       onClose();
     } catch (err: any) {
       haptic.error();
@@ -140,22 +168,78 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {mode === 'register' && (
-            <div>
-              <label className="text-[11px] font-semibold text-neutral-700 block mb-1">
-                Seu Nome
-              </label>
-              <div className="relative flex items-center">
-                <User className="w-4 h-4 text-neutral-400 absolute left-3" />
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Henrique Paiva"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#F6F5F2] text-xs font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950"
-                />
+            <>
+              <div>
+                <label className="text-[11px] font-semibold text-neutral-700 block mb-1">
+                  Finalidade da Conta
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsCoupleAccount(false)}
+                    className={`py-2 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition ${
+                      !isCoupleAccount
+                        ? 'bg-neutral-950 text-white border-neutral-950 shadow-xs'
+                        : 'bg-[#F6F5F2] text-neutral-600 border-transparent hover:bg-neutral-200'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    Individual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsCoupleAccount(true)}
+                    className={`py-2 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition ${
+                      isCoupleAccount
+                        ? 'bg-[#0F3D3E] text-[#5EEAB4] border-[#0F3D3E] shadow-xs'
+                        : 'bg-[#F6F5F2] text-neutral-600 border-transparent hover:bg-neutral-200'
+                    }`}
+                  >
+                    <Heart className="w-3.5 h-3.5 text-pink-400" />
+                    Casal (Conjunta)
+                  </button>
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-neutral-700 block mb-1">
+                  {isCoupleAccount ? 'Seu Nome (Parceiro 1)' : 'Seu Nome'}
+                </label>
+                <div className="relative flex items-center">
+                  <User className="w-4 h-4 text-neutral-400 absolute left-3" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Henrique"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#F6F5F2] text-xs font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950"
+                  />
+                </div>
+              </div>
+
+              {isCoupleAccount && (
+                <div className="animate-view">
+                  <label className="text-[11px] font-semibold text-neutral-700 block mb-1">
+                    Nome do(a) Parceiro(a) (Parceiro 2)
+                  </label>
+                  <div className="relative flex items-center">
+                    <Heart className="w-4 h-4 text-pink-500 absolute left-3" />
+                    <input
+                      type="text"
+                      required={isCoupleAccount}
+                      placeholder="Ex: Camila"
+                      value={partnerName}
+                      onChange={(e) => setPartnerName(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#F6F5F2] text-xs font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+                  <p className="text-[10px] text-neutral-500 mt-1">
+                    Ativa divisão de contas, 'Quem pagou' e acerto mensal da casa.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           <div>

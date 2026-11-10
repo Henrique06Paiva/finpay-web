@@ -331,6 +331,7 @@ export function App() {
               debts={state.debts}
               payroll={state.payroll || DEFAULT_PAYROLL}
               goals={state.goals}
+              profile={state.prefs.profile}
               hideBalances={hideBalances}
               onOpenNewTx={handleOpenNewTx}
               onOpenOpenFinance={() => setOpenFinanceOpen(true)}
@@ -349,6 +350,7 @@ export function App() {
               transactions={state.transactions}
               accounts={state.accounts}
               categories={state.categories}
+              profile={state.prefs.profile}
               hideBalances={hideBalances}
               onOpenNewTx={handleOpenNewTx}
               onOpenOpenFinance={() => setOpenFinanceOpen(true)}
@@ -444,6 +446,7 @@ export function App() {
             accounts={state.accounts}
             categories={state.categories}
             goals={state.goals}
+            profile={state.prefs.profile}
             onClose={() => {
               setTxModalOpen(false);
               setEditingTx(null);

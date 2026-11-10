@@ -7,6 +7,7 @@ import {
   Database,
   Download,
   FileText,
+  Heart,
   Lock,
   LogOut,
   Mic,
@@ -21,6 +22,7 @@ import {
   Upload,
   User,
   UserCheck,
+  Users,
   Wallet,
 } from 'lucide-react';
 import { SiriShortcutsGuide } from './SiriShortcutsGuide';
@@ -205,9 +207,23 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     }
   };
 
-  // Perfil
+  // Perfil & Modo Casal
   const [userName, setUserName] = useState(prefs.profile?.name || '');
   const [userEmail, setUserEmail] = useState(prefs.profile?.email || '');
+  const [isCoupleMode, setIsCoupleMode] = useState<boolean>(Boolean(prefs.profile?.isCoupleMode));
+  const [partner1Name, setPartner1Name] = useState(prefs.profile?.partner1Name || prefs.profile?.name || 'Ele');
+  const [partner2Name, setPartner2Name] = useState(prefs.profile?.partner2Name || 'Ela');
+  const [splitMode, setSplitMode] = useState<'50_50' | 'proportional' | 'custom'>(prefs.profile?.splitMode || '50_50');
+  const [accOwner, setAccOwner] = useState<'partner1' | 'partner2' | 'joint'>('joint');
+
+  useEffect(() => {
+    if (prefs.profile?.name) setUserName(prefs.profile.name);
+    if (prefs.profile?.email) setUserEmail(prefs.profile.email);
+    if (prefs.profile?.isCoupleMode !== undefined) setIsCoupleMode(Boolean(prefs.profile.isCoupleMode));
+    if (prefs.profile?.partner1Name) setPartner1Name(prefs.profile.partner1Name);
+    if (prefs.profile?.partner2Name) setPartner2Name(prefs.profile.partner2Name);
+    if (prefs.profile?.splitMode) setSplitMode(prefs.profile.splitMode);
+  }, [prefs.profile]);
 
   // Contas
   const [accName, setAccName] = useState('');
@@ -238,9 +254,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       profile: {
         name: userName.trim(),
         email: userEmail.trim() || undefined,
+        isCoupleMode,
+        partner1Name: isCoupleMode ? partner1Name.trim() || 'Ele' : undefined,
+        partner2Name: isCoupleMode ? partner2Name.trim() || 'Ela' : undefined,
+        splitMode: isCoupleMode ? splitMode : undefined,
       },
     });
-    notify('Perfil salvo com sucesso.');
+    notify(isCoupleMode ? 'Perfil e Modo Casal salvos com sucesso!' : 'Perfil salvo com sucesso.');
   };
 
   const handleCreateAccount = (e: React.FormEvent) => {
@@ -251,6 +271,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       type: accType,
       initialBalance: parseMoney(accInitial),
       color: PALETTE[accounts.length % PALETTE.length],
+      owner: isCoupleMode ? accOwner : undefined,
+      isJoint: isCoupleMode ? accOwner === 'joint' : undefined,
     });
     setAccName('');
     setAccInitial('');
@@ -605,7 +627,26 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       style={{ backgroundColor: acc.color }}
                     />
                     <div>
-                      <p className="text-sm font-bold text-neutral-900">{acc.name}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-bold text-neutral-900">{acc.name}</p>
+                        {isCoupleMode && (
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                              acc.isJoint || acc.owner === 'joint' || (!acc.owner && !acc.isJoint)
+                                ? 'bg-purple-100 text-purple-800'
+                                : acc.owner === 'partner2'
+                                ? 'bg-pink-100 text-pink-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}
+                          >
+                            {acc.isJoint || acc.owner === 'joint' || (!acc.owner && !acc.isJoint)
+                              ? 'Conta Conjunta'
+                              : acc.owner === 'partner2'
+                              ? partner2Name || 'Ela'
+                              : partner1Name || 'Ele'}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-neutral-400">
                         {ACCOUNT_TYPE_LABEL[acc.type]} · Inicial:{' '}
                         {formatBRL(acc.initialBalance, hideBalances)}
@@ -694,6 +735,50 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <option value="credit">Cartão de crédito</option>
               </select>
             </div>
+
+            {isCoupleMode && (
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-pink-50/40 via-purple-50/30 to-blue-50/40 border border-purple-100/60 space-y-1.5">
+                <label className="text-[11px] font-semibold text-neutral-700 flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-purple-600" />
+                  Titularidade da Conta
+                </label>
+                <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-white/80 border border-purple-100 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setAccOwner('joint')}
+                    className={`py-1.5 px-2 rounded-lg transition truncate ${
+                      accOwner === 'joint'
+                        ? 'bg-purple-700 text-white shadow-xs'
+                        : 'text-neutral-600 hover:bg-neutral-100'
+                    }`}
+                  >
+                    👥 Conjunta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccOwner('partner1')}
+                    className={`py-1.5 px-2 rounded-lg transition truncate ${
+                      accOwner === 'partner1'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-neutral-600 hover:bg-neutral-100'
+                    }`}
+                  >
+                    👤 {partner1Name || 'Ele'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccOwner('partner2')}
+                    className={`py-1.5 px-2 rounded-lg transition truncate ${
+                      accOwner === 'partner2'
+                        ? 'bg-pink-600 text-white shadow-xs'
+                        : 'text-neutral-600 hover:bg-neutral-100'
+                    }`}
+                  >
+                    👤 {partner2Name || 'Ela'}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="flex gap-2">
               <input
                 type="text"
@@ -1032,54 +1117,167 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         </section>
       )}
 
-      {/* 5. ABA PERFIL */}
+      {/* 5. ABA PERFIL & MODO CASAL */}
       {section === 'profile' && (
-        <form
-          onSubmit={handleSaveProfile}
-          className="editorial-card rounded-3xl p-5 space-y-4"
-        >
-          <div>
-            <h3 className="text-sm font-bold text-neutral-950">Seu Perfil</h3>
-            <p className="text-xs text-neutral-500">
-              Personalize sua identificação local no aplicativo
-            </p>
-          </div>
-
-          <div>
-            <label className="text-xs text-neutral-500 block mb-1">Seu nome</label>
-            <input
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="Ex: Henrique Paiva"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F5F2] text-xs text-neutral-900"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-neutral-500 block mb-1">E-mail (opcional)</label>
-            <input
-              type="email"
-              value={userEmail}
-              onChange={(e) => setUserEmail(e.target.value)}
-              placeholder="seu@email.com"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F5F2] text-xs text-neutral-900"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-3 rounded-full bg-neutral-950 text-white text-xs font-semibold"
+        <div className="space-y-4">
+          <form
+            onSubmit={handleSaveProfile}
+            className="editorial-card rounded-3xl p-5 space-y-4"
           >
-            Salvar perfil
-          </button>
-        </form>
+            <div>
+              <h3 className="text-sm font-bold text-neutral-950">Seu Perfil</h3>
+              <p className="text-xs text-neutral-500">
+                Personalize sua identificação no aplicativo
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs text-neutral-500 block mb-1">Seu nome</label>
+              <input
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Ex: Henrique Paiva"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F5F2] text-xs text-neutral-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-neutral-500 block mb-1">E-mail (opcional)</label>
+              <input
+                type="email"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                placeholder="seu@email.com"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F5F2] text-xs text-neutral-900"
+              />
+            </div>
+
+            {/* MODO CASAL / CONTA CONJUNTA */}
+            <div className="pt-4 border-t border-neutral-100 space-y-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0">
+                    <Heart className="w-4 h-4 fill-pink-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-neutral-950">
+                      Modo Casal (Conta Conjunta & Divisão a Dois)
+                    </h4>
+                    <p className="text-[11px] text-neutral-500">
+                      Ative para gerenciar despesas da casa, divisão e acerto mensal
+                    </p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={isCoupleMode}
+                    onChange={(e) => setIsCoupleMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600" />
+                </label>
+              </div>
+
+              {isCoupleMode && (
+                <div className="space-y-3 p-3.5 rounded-2xl bg-gradient-to-br from-pink-50/50 via-purple-50/30 to-blue-50/40 border border-pink-100 animate-view">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[11px] font-semibold text-neutral-700 block mb-1">
+                        Seu nome (Parceiro 1)
+                      </label>
+                      <input
+                        type="text"
+                        value={partner1Name}
+                        onChange={(e) => setPartner1Name(e.target.value)}
+                        placeholder="Ex: Ele"
+                        className="w-full px-3 py-2 rounded-xl bg-white text-xs font-medium text-neutral-900 border border-purple-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-neutral-700 block mb-1">
+                        Parceiro(a) (Parceiro 2)
+                      </label>
+                      <input
+                        type="text"
+                        value={partner2Name}
+                        onChange={(e) => setPartner2Name(e.target.value)}
+                        placeholder="Ex: Ela"
+                        className="w-full px-3 py-2 rounded-xl bg-white text-xs font-medium text-neutral-900 border border-purple-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-neutral-700 block mb-1">
+                      Regra de Divisão das Despesas da Casa
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-white/90 border border-purple-100 text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setSplitMode('50_50')}
+                        className={`py-1.5 px-2 rounded-lg transition ${
+                          splitMode === '50_50'
+                            ? 'bg-neutral-950 text-white shadow-xs'
+                            : 'text-neutral-600 hover:bg-neutral-100'
+                        }`}
+                      >
+                        50% / 50% (Meio a meio)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSplitMode('proportional')}
+                        className={`py-1.5 px-2 rounded-lg transition ${
+                          splitMode === 'proportional'
+                            ? 'bg-neutral-950 text-white shadow-xs'
+                            : 'text-neutral-600 hover:bg-neutral-100'
+                        }`}
+                      >
+                        Proporcional à renda
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-neutral-500 leading-relaxed">
+                    ✨ Com o Modo Casal ativo, ao adicionar qualquer despesa você poderá indicar quem pagou (você, seu parceiro ou a conta conjunta) e se é um gasto comum da casa ou estritamente pessoal. O app calcula o balanço mensal automaticamente!
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-full bg-neutral-950 text-white text-xs font-semibold"
+            >
+              Salvar alterações
+            </button>
+          </form>
+        </div>
       )}
-          <AuthModal
+      <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        onLoginSuccess={(user) => {
+        onLoginSuccess={(user, coupleConfig) => {
           setAuthUser(user);
+          if (coupleConfig?.isCoupleMode) {
+            onUpdatePrefs({
+              ...prefs,
+              profile: {
+                ...prefs.profile,
+                name: user.name,
+                email: user.email,
+                isCoupleMode: true,
+                partner1Name: coupleConfig.partner1Name,
+                partner2Name: coupleConfig.partner2Name,
+                splitMode: coupleConfig.splitMode,
+              },
+            });
+            setIsCoupleMode(true);
+            setPartner1Name(coupleConfig.partner1Name);
+            setPartner2Name(coupleConfig.partner2Name);
+            setSplitMode(coupleConfig.splitMode);
+          }
           notify('Bem-vindo(a), ' + user.name + '! Baixando seus dados da nuvem...');
           handlePullFromCloud();
         }}

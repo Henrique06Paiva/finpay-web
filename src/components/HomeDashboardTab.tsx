@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
+  Heart,
   Plus,
   Sparkles,
   TrendingUp,
@@ -25,6 +26,7 @@ import {
   PayrollConfig,
   StrategicGoal,
   Transaction,
+  UserProfile,
 } from '../types/finance';
 import {
   computeAccountBalances,
@@ -33,7 +35,7 @@ import {
   computeMonthlySummary,
 } from '../utils/analytics';
 import { calculatePayrollMonth } from '../services/payrollService';
-import { formatShortDate, monthLabel, relativeDue, shiftYM, todayISO } from '../utils/date';
+import { formatShortDate, monthLabel, relativeDue, shiftYM, todayISO, ymOf } from '../utils/date';
 import { formatBRL, formatCompactBRL, formatPct, parseMoney, toInputMoney } from '../utils/format';
 import { CategoryIcon } from './CategoryIcon';
 import { ACCOUNT_TYPE_LABEL } from '../data/defaults';
@@ -49,6 +51,7 @@ interface HomeDashboardTabProps {
   debts: Debt[];
   payroll?: PayrollConfig;
   goals: StrategicGoal[];
+  profile?: UserProfile;
   hideBalances: boolean;
   onOpenNewTx: (defaultType?: 'expense' | 'income' | 'transfer') => void;
   onOpenOpenFinance: () => void;
@@ -70,6 +73,7 @@ export const HomeDashboardTab: React.FC<HomeDashboardTabProps> = ({
   bills,
   debts,
   payroll,
+  profile,
   hideBalances,
   onOpenNewTx,
   onOpenOpenFinance,
@@ -83,6 +87,82 @@ export const HomeDashboardTab: React.FC<HomeDashboardTabProps> = ({
   const [chartMode, setChartMode] = useState<'evolution' | 'comparison'>('evolution');
   const [editingAccId, setEditingAccId] = useState<string | null>(null);
   const [accBalanceInput, setAccBalanceInput] = useState<string>('');
+
+  const coupleSummary = useMemo(() => {
+    if (!profile?.isCoupleMode) return null;
+
+    const p1Name = profile.partner1Name || profile.name || 'Ele';
+    const p2Name = profile.partner2Name || 'Ela';
+
+    const monthExpenses = transactions.filter(
+      (tx) => ymOf(tx.date) === selectedYm && tx.type === 'expense'
+    );
+
+    const householdExpenses = monthExpenses.filter(
+      (tx) => tx.scope === 'household' || (!tx.scope && tx.payer)
+    );
+
+    let p1Paid = 0;
+    let p2Paid = 0;
+    let jointPaid = 0;
+
+    for (const tx of householdExpenses) {
+      if (tx.payer === 'partner2') {
+        p2Paid += tx.amount;
+      } else if (tx.payer === 'joint') {
+        jointPaid += tx.amount;
+      } else {
+        p1Paid += tx.amount;
+      }
+    }
+
+    const totalSharedOutOfPocket = p1Paid + p2Paid;
+    const totalHousehold = totalSharedOutOfPocket + jointPaid;
+
+    const ratio1 =
+      profile.splitMode === 'proportional' && profile.partner1Ratio
+        ? profile.partner1Ratio / 100
+        : 0.5;
+    const ratio2 = 1 - ratio1;
+
+    const fairShareP1 = totalSharedOutOfPocket * ratio1;
+    const fairShareP2 = totalSharedOutOfPocket * ratio2;
+    const p1Diff = p1Paid - fairShareP1;
+
+    let settlementText = '';
+    let debtorName = '';
+    let creditorName = '';
+    let amountToTransfer = 0;
+
+    if (Math.abs(p1Diff) < 0.01 || totalSharedOutOfPocket === 0) {
+      settlementText = 'Contas da casa 100% equilibradas!';
+    } else if (p1Diff > 0) {
+      debtorName = p2Name;
+      creditorName = p1Name;
+      amountToTransfer = p1Diff;
+      settlementText = `${p2Name} deve transferir ${formatBRL(amountToTransfer, hideBalances)} para ${p1Name}`;
+    } else {
+      debtorName = p1Name;
+      creditorName = p2Name;
+      amountToTransfer = Math.abs(p1Diff);
+      settlementText = `${p1Name} deve transferir ${formatBRL(amountToTransfer, hideBalances)} para ${p2Name}`;
+    }
+
+    return {
+      p1Name,
+      p2Name,
+      p1Paid,
+      p2Paid,
+      jointPaid,
+      totalHousehold,
+      totalSharedOutOfPocket,
+      settlementText,
+      debtorName,
+      creditorName,
+      amountToTransfer,
+      householdCount: householdExpenses.length,
+    };
+  }, [profile, transactions, selectedYm, hideBalances]);
 
   const accountBalances = useMemo(
     () => computeAccountBalances(accounts, transactions),
@@ -356,6 +436,86 @@ export const HomeDashboardTab: React.FC<HomeDashboardTabProps> = ({
           </div>
         </div>
       </section>
+
+      {/* CARD DO MODO CASAL: ACERTO DE CONTAS & DESPESAS COMPARTILHADAS */}
+      {coupleSummary && (
+        <section className="editorial-card rounded-3xl p-5 space-y-4 bg-gradient-to-br from-white via-pink-50/20 to-purple-50/20 border border-pink-100 shadow-xs animate-view">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0">
+                <Heart className="w-4 h-4 fill-pink-500" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-bold text-neutral-950">
+                    Acerto de Contas do Casal
+                  </h3>
+                  <span className="px-1.5 py-0.2 rounded bg-pink-100 text-pink-800 text-[9px] font-bold">
+                    {monthLabel(selectedYm)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-500 mt-0.5">
+                  {coupleSummary.householdCount} despesa(s) comum(ns) da casa
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => onOpenNewTx('expense')}
+              className="px-3 py-1.5 rounded-full bg-neutral-950 text-white text-xs font-semibold flex items-center gap-1 active:scale-95 transition"
+            >
+              <Plus className="w-3 h-3" /> Despesa
+            </button>
+          </div>
+
+          {/* Quem pagou quanto */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="p-3 rounded-2xl bg-white/90 border border-blue-100">
+              <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
+                👤 {coupleSummary.p1Name}
+              </span>
+              <p className="text-sm font-bold text-neutral-950 tabular-nums mt-0.5">
+                {formatBRL(coupleSummary.p1Paid, hideBalances)}
+              </p>
+              <span className="text-[10px] text-neutral-400">Desembolsou na casa</span>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/90 border border-pink-100">
+              <span className="text-[10px] font-bold text-pink-700 uppercase tracking-wider block">
+                👤 {coupleSummary.p2Name}
+              </span>
+              <p className="text-sm font-bold text-neutral-950 tabular-nums mt-0.5">
+                {formatBRL(coupleSummary.p2Paid, hideBalances)}
+              </p>
+              <span className="text-[10px] text-neutral-400">Desembolsou na casa</span>
+            </div>
+          </div>
+
+          {coupleSummary.jointPaid > 0 && (
+            <div className="p-2.5 rounded-xl bg-purple-50 text-[11px] text-purple-900 flex items-center justify-between font-medium">
+              <span>👥 Pago via Conta Conjunta:</span>
+              <span className="font-bold">{formatBRL(coupleSummary.jointPaid, hideBalances)}</span>
+            </div>
+          )}
+
+          {/* Chamada de Acerto / Transferência */}
+          <div className="p-3.5 rounded-2xl bg-[#0F3D3E] text-white flex items-center justify-between gap-2 shadow-xs">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-[#5EEAB4] font-bold">
+                Balanço do Acerto ({profile?.splitMode === 'proportional' ? 'Proporcional' : '50% / 50%'})
+              </p>
+              <p className="text-xs font-bold leading-snug mt-0.5">
+                {coupleSummary.settlementText}
+              </p>
+            </div>
+            {coupleSummary.amountToTransfer > 0 && (
+              <span className="px-2.5 py-1 rounded-xl bg-white/10 text-[#5EEAB4] text-[11px] font-bold tabular-nums flex-shrink-0">
+                {formatCompactBRL(coupleSummary.amountToTransfer, hideBalances)}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Card do Salário & Holerite CLT Automático */}
       {payrollCalc && payrollCalc.grossSalary > 0 ? (

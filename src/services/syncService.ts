@@ -31,6 +31,8 @@ export interface CrossPlatformSyncPayload {
     name: string;
     subtitle?: string;
     balance: number;
+    owner?: 'partner1' | 'partner2' | 'joint';
+    isJoint?: boolean;
   }>;
   transactions: Array<{
     id: string;
@@ -40,6 +42,8 @@ export interface CrossPlatformSyncPayload {
     amount: number;
     isIncome: boolean;
     isFixed?: boolean;
+    payer?: 'partner1' | 'partner2' | 'joint';
+    scope?: 'household' | 'individual';
   }>;
   debts: Array<{
     id: string;
@@ -83,6 +87,8 @@ export function buildSyncPayload(
     name: a.name,
     subtitle: a.type === 'checking' ? 'Conta Corrente' : a.type === 'investment' ? 'Investimentos' : 'Carteira',
     balance: a.initialBalance,
+    owner: a.owner,
+    isJoint: a.isJoint,
   }));
 
   // Ordena transações por data descendente
@@ -96,6 +102,8 @@ export function buildSyncPayload(
     amount: t.amount,
     isIncome: t.type === 'income',
     isFixed: Boolean(t.billId),
+    payer: t.payer,
+    scope: t.scope,
   }));
 
   // Mapeia dívidas
@@ -178,6 +186,8 @@ export function mergeSyncPayload(
       if (existing.initialBalance === 0 && acc.balance !== 0) {
         existing.initialBalance = acc.balance;
       }
+      if (acc.owner) existing.owner = acc.owner;
+      if (acc.isJoint !== undefined) existing.isJoint = acc.isJoint;
     } else {
       mergedAccounts.push({
         id: acc.id || `acc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -185,6 +195,8 @@ export function mergeSyncPayload(
         type: 'checking',
         initialBalance: acc.balance,
         color: '#0F3D3E',
+        owner: acc.owner,
+        isJoint: acc.isJoint,
       });
     }
   }
@@ -276,6 +288,8 @@ export function mergeSyncPayload(
       paymentMethod: 'pix',
       status: 'paid',
       tags: ['sincronizado'],
+      payer: t.payer,
+      scope: t.scope,
       externalId: t.id,
       createdAt: Date.now(),
     });

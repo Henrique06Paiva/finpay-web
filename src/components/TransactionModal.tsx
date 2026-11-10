@@ -1,6 +1,6 @@
 import { haptic } from '../services/hapticService';
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Heart, X } from 'lucide-react';
 import {
   Account,
   Category,
@@ -9,6 +9,7 @@ import {
   Transaction,
   TxStatus,
   TxType,
+  UserProfile,
 } from '../types/finance';
 import { todayISO } from '../utils/date';
 import { formatBRL, parseMoney, toInputMoney } from '../utils/format';
@@ -25,6 +26,7 @@ interface TransactionModalProps {
   accounts: Account[];
   categories: Category[];
   goals: StrategicGoal[];
+  profile?: UserProfile;
   onClose: () => void;
   onSave: (
     tx: Omit<Transaction, 'id' | 'createdAt'>,
@@ -41,6 +43,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   accounts,
   categories,
   goals,
+  profile,
   onClose,
   onSave,
 }) => {
@@ -60,6 +63,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [notes, setNotes] = useState('');
   const [goalId, setGoalId] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Modo Casal / Finanças a Dois
+  const [payer, setPayer] = useState<'partner1' | 'partner2' | 'joint'>('partner1');
+  const [scope, setScope] = useState<'household' | 'individual'>('household');
 
   useEffect(() => {
     if (editingTx) {
@@ -83,6 +90,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setTagsInput((editingTx.tags || []).join(', '));
       setNotes(editingTx.notes || '');
       setGoalId(editingTx.goalId || '');
+      setPayer(editingTx.payer || 'partner1');
+      setScope(editingTx.scope || 'household');
       setShowAdvanced(Boolean(editingTx.notes || (editingTx.tags && editingTx.tags.length > 0)));
     } else {
       setType(defaultType);
@@ -98,6 +107,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setPaymentMethod('pix');
       setInstallments(1);
       setStatus('paid');
+      setPayer('partner1');
+      setScope('household');
       setTagsInput(initialValues ? 'siri, atalho' : '');
       setNotes(initialValues ? 'Lançado via Atalho da Siri / iOS' : '');
       setGoalId('');
@@ -146,6 +157,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         tags,
         notes: notes.trim() || undefined,
         goalId: type === 'investment' && goalId ? goalId : undefined,
+        payer: profile?.isCoupleMode ? payer : undefined,
+        scope: profile?.isCoupleMode && type === 'expense' ? scope : undefined,
       },
       editingTx?.id,
       !editingTx && type === 'expense' && paymentMethod === 'credit' ? installments : 1
@@ -386,6 +399,99 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                     {type === 'income' ? 'A receber (previsto)' : 'A pagar (pendente)'}
                   </option>
                 </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bloco de Finanças do Casal (Quando o Modo Casal estiver ativo) */}
+        {profile?.isCoupleMode && type !== 'transfer' && (
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-pink-50/70 via-purple-50/40 to-blue-50/60 border border-pink-100/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-neutral-900 flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-pink-500 fill-pink-500" />
+                Finanças do Casal
+              </span>
+              <span className="text-[10px] text-pink-700 font-semibold px-2 py-0.5 rounded-full bg-pink-100/60">
+                Modo Casal
+              </span>
+            </div>
+
+            <div>
+              <label className="text-[11px] text-neutral-600 font-semibold block mb-1.5">
+                Quem pagou / recebeu?
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-white/90 border border-purple-100 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setPayer('partner1')}
+                  className={`py-1.5 px-2 rounded-lg transition truncate ${
+                    payer === 'partner1'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-neutral-600 hover:bg-neutral-100'
+                  }`}
+                >
+                  👤 {profile.partner1Name || 'Ele'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayer('partner2')}
+                  className={`py-1.5 px-2 rounded-lg transition truncate ${
+                    payer === 'partner2'
+                      ? 'bg-pink-600 text-white shadow-xs'
+                      : 'text-neutral-600 hover:bg-neutral-100'
+                  }`}
+                >
+                  👤 {profile.partner2Name || 'Ela'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayer('joint')}
+                  className={`py-1.5 px-2 rounded-lg transition truncate ${
+                    payer === 'joint'
+                      ? 'bg-purple-700 text-white shadow-xs'
+                      : 'text-neutral-600 hover:bg-neutral-100'
+                  }`}
+                >
+                  👥 Conjunta
+                </button>
+              </div>
+            </div>
+
+            {type === 'expense' && (
+              <div>
+                <label className="text-[11px] text-neutral-600 font-semibold block mb-1.5">
+                  Divisão da despesa
+                </label>
+                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-white/90 border border-purple-100 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setScope('household')}
+                    className={`py-1.5 px-2 rounded-lg transition ${
+                      scope === 'household'
+                        ? 'bg-neutral-950 text-white shadow-xs'
+                        : 'text-neutral-600 hover:bg-neutral-100'
+                    }`}
+                  >
+                    🏠 Da Casa (Comum)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScope('individual')}
+                    className={`py-1.5 px-2 rounded-lg transition ${
+                      scope === 'individual'
+                        ? 'bg-neutral-950 text-white shadow-xs'
+                        : 'text-neutral-600 hover:bg-neutral-100'
+                    }`}
+                  >
+                    👤 Gasto Pessoal
+                  </button>
+                </div>
+                <p className="text-[10px] text-neutral-500 mt-1">
+                  {scope === 'household'
+                    ? 'Entra no cálculo automático do acerto de contas do casal no mês.'
+                    : 'Gasto individual particular, não entra no acerto compartilhado.'}
+                </p>
               </div>
             )}
           </div>

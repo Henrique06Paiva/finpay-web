@@ -18,6 +18,7 @@ import {
   Category,
   Transaction,
   TxType,
+  UserProfile,
 } from '../types/finance';
 import { PAYMENT_LABEL } from '../data/defaults';
 import { formatDayHeader, ymOf } from '../utils/date';
@@ -29,6 +30,7 @@ interface TransactionsTabProps {
   transactions: Transaction[];
   accounts: Account[];
   categories: Category[];
+  profile?: UserProfile;
   hideBalances: boolean;
   onOpenNewTx: (defaultType?: TxType) => void;
   onOpenOpenFinance: () => void;
@@ -42,6 +44,7 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
   transactions,
   accounts,
   categories,
+  profile,
   hideBalances,
   onOpenNewTx,
   onOpenOpenFinance,
@@ -54,6 +57,7 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
   const [accountFilter, setAccountFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [scopeAllMonths, setScopeAllMonths] = useState<boolean>(false);
+  const [coupleFilter, setCoupleFilter] = useState<'all' | 'household' | 'partner1' | 'partner2'>('all');
 
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -74,6 +78,11 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
         if (categoryFilter !== 'all' && tx.categoryId !== categoryFilter) {
           return false;
         }
+        if (profile?.isCoupleMode && coupleFilter !== 'all') {
+          if (coupleFilter === 'household' && tx.scope !== 'household') return false;
+          if (coupleFilter === 'partner1' && tx.payer !== 'partner1') return false;
+          if (coupleFilter === 'partner2' && tx.payer !== 'partner2') return false;
+        }
         if (q) {
           const catName = catMap.get(tx.categoryId || '')?.name || '';
           const tagsStr = (tx.tags || []).join(' ');
@@ -90,6 +99,8 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
     typeFilter,
     accountFilter,
     categoryFilter,
+    coupleFilter,
+    profile,
     searchQuery,
     catMap,
   ]);
@@ -220,6 +231,35 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
         </select>
       </div>
 
+      {/* Filtro do Modo Casal */}
+      {profile?.isCoupleMode && (
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          {(
+            [
+              { id: 'all', label: 'Tudo' },
+              { id: 'household', label: '🏠 Só Casa (Comum)' },
+              { id: 'partner1', label: `👤 Só ${profile.partner1Name || 'Ele'}` },
+              { id: 'partner2', label: `👤 Só ${profile.partner2Name || 'Ela'}` },
+            ] as const
+          ).map((cf) => {
+            const active = coupleFilter === cf.id;
+            return (
+              <button
+                key={cf.id}
+                onClick={() => setCoupleFilter(cf.id)}
+                className={`px-3 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1 flex-shrink-0 transition ${
+                  active
+                    ? 'bg-pink-700 text-white shadow-xs'
+                    : 'bg-white border border-pink-100 text-neutral-600'
+                }`}
+              >
+                {cf.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Resumo Rápido do Filtro Atual */}
       <div className="flex items-center justify-between px-1 text-xs text-neutral-500 tabular-nums">
         <span>{filtered.length} lançamento(s)</span>
@@ -304,6 +344,34 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
                               {tx.status === 'pending' && (
                                 <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-semibold flex items-center gap-0.5">
                                   <Clock className="w-2.5 h-2.5" /> Pendente
+                                </span>
+                              )}
+                              {profile?.isCoupleMode && tx.payer && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                                    tx.payer === 'partner1'
+                                      ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                      : tx.payer === 'partner2'
+                                      ? 'bg-pink-50 text-pink-700 border border-pink-100'
+                                      : 'bg-purple-50 text-purple-700 border border-purple-100'
+                                  }`}
+                                >
+                                  {tx.payer === 'partner1'
+                                    ? profile.partner1Name || 'Ele'
+                                    : tx.payer === 'partner2'
+                                    ? profile.partner2Name || 'Ela'
+                                    : 'Conjunta'}
+                                </span>
+                              )}
+                              {profile?.isCoupleMode && tx.scope && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                                    tx.scope === 'household'
+                                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                      : 'bg-neutral-100 text-neutral-600'
+                                  }`}
+                                >
+                                  {tx.scope === 'household' ? 'Casa' : 'Pessoal'}
                                 </span>
                               )}
                             </div>

@@ -70,6 +70,12 @@ export interface UserProfile {
   name: string;
   email?: string;
   monthlyIncomeGoal?: number;
+  /** Configurações do Modo Casal / Finanças a Dois */
+  isCoupleMode?: boolean;
+  partner1Name?: string;
+  partner2Name?: string;
+  splitMode?: '50_50' | 'proportional' | 'custom';
+  partner1Ratio?: number; // ex: 50 para 50%, ou 60 para 60%
 }
 
 export interface Account {
@@ -80,6 +86,9 @@ export interface Account {
   initialBalance: number;
   color: string;
   archived?: boolean;
+  /** Titularidade da conta bancária no Modo Casal */
+  owner?: 'partner1' | 'partner2' | 'joint';
+  isJoint?: boolean;
 }
 
 export interface Category {
@@ -119,6 +128,10 @@ export interface Transaction {
   payrollYm?: string;
   installment?: { index: number; total: number; groupId: string };
   createdAt: number;
+  /** Quem realizou o pagamento no Modo Casal */
+  payer?: 'partner1' | 'partner2' | 'joint';
+  /** Escopo da despesa: Comum do Lar ou Gasto Pessoal */
+  scope?: 'household' | 'personal_1' | 'personal_2';
 }
 
 export interface Budget {
