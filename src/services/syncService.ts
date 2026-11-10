@@ -70,9 +70,13 @@ export interface CrossPlatformSyncPayload {
 }
 
 /**
- * Converte o estado completo do FinPay (iOS / Web) para o formato interoperável do Android
+ * Converte o estado completo do FinPay (iOS / Web) para o formato interoperável do Android / Nuvem.
+ * Permite limitar quantidade para QR Codes compactos ou enviar histórico integral para a nuvem.
  */
-export function buildSyncPayload(state: FinanceState): CrossPlatformSyncPayload {
+export function buildSyncPayload(
+  state: FinanceState,
+  options?: { limit?: number }
+): CrossPlatformSyncPayload {
   // Mapeia contas
   const accounts = state.accounts.map((a) => ({
     id: a.id,
@@ -81,9 +85,10 @@ export function buildSyncPayload(state: FinanceState): CrossPlatformSyncPayload 
     balance: a.initialBalance,
   }));
 
-  // Mapeia até as 30 transações mais recentes para caber com folga no limite de densidade de QR Code
+  // Ordena transações por data descendente
   const sortedTxs = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date));
-  const recentTxs = sortedTxs.slice(0, 30).map((t) => ({
+  const txLimit = options?.limit !== undefined ? options.limit : 30;
+  const recentTxs = (txLimit > 0 ? sortedTxs.slice(0, txLimit) : sortedTxs).map((t) => ({
     id: t.id,
     title: t.description,
     category: t.categoryId || 'outros',
@@ -145,7 +150,15 @@ export function buildSyncPayload(state: FinanceState): CrossPlatformSyncPayload 
 }
 
 /**
- * Mescla dados recebidos do Android ou outro iPhone no estado atual sem apagar cadastros prévios
+ * Cria o payload completo para sincronização com o banco PostgreSQL na nuvem,
+ * sem limitação de transações (envia 100% do histórico financeiro).
+ */
+export function buildCloudSyncPayload(state: FinanceState): CrossPlatformSyncPayload {
+  return buildSyncPayload(state, { limit: 0 });
+}
+
+/**
+ * Mescla dados recebidos da nuvem, Android ou outro iPhone no estado atual sem apagar cadastros prévios
  */
 export function mergeSyncPayload(
   currentState: FinanceState,
@@ -158,12 +171,16 @@ export function mergeSyncPayload(
   // 1. Contas
   const mergedAccounts = [...currentState.accounts];
   for (const acc of payload.accounts) {
-    const existing = mergedAccounts.find((a) => a.id === acc.id || a.name.toLowerCase() === acc.name.toLowerCase());
+    const existing = mergedAccounts.find(
+      (a) => a.id === acc.id || a.name.toLowerCase().trim() === acc.name.toLowerCase().trim()
+    );
     if (existing) {
-      existing.initialBalance = acc.balance;
+      if (existing.initialBalance === 0 && acc.balance !== 0) {
+        existing.initialBalance = acc.balance;
+      }
     } else {
       mergedAccounts.push({
-        id: acc.id || `acc-${Date.now()}`,
+        id: acc.id || `acc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         name: acc.name,
         type: 'checking',
         initialBalance: acc.balance,
@@ -175,14 +192,16 @@ export function mergeSyncPayload(
   // 2. Dívidas
   const mergedDebts = [...currentState.debts];
   for (const d of payload.debts) {
-    const existing = mergedDebts.find((x) => x.id === d.id || x.name.toLowerCase() === d.title.toLowerCase());
+    const existing = mergedDebts.find(
+      (x) => x.id === d.id || x.name.toLowerCase().trim() === d.title.toLowerCase().trim()
+    );
     if (existing) {
       existing.currentBalance = d.balance;
       existing.monthlyInterestRate = d.monthlyRatePercent;
       existing.amortizationSystem = d.isSAC ? 'sac' : 'price';
     } else {
       mergedDebts.push({
-        id: d.id || `debt-${Date.now()}`,
+        id: d.id || `debt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         name: d.title,
         creditor: d.institution,
         kind: 'financing',
@@ -203,13 +222,15 @@ export function mergeSyncPayload(
   // 3. Metas
   const mergedGoals = [...currentState.goals];
   for (const g of payload.goals) {
-    const existing = mergedGoals.find((x) => x.id === g.id || x.title.toLowerCase() === g.title.toLowerCase());
+    const existing = mergedGoals.find(
+      (x) => x.id === g.id || x.title.toLowerCase().trim() === g.title.toLowerCase().trim()
+    );
     if (existing) {
       existing.currentAmount = g.currentAmount;
       existing.targetAmount = g.targetAmount;
     } else {
       mergedGoals.push({
-        id: g.id || `goal-${Date.now()}`,
+        id: g.id || `goal-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         title: g.title,
         subtitle: g.subtitle,
         icon: 'Target',
@@ -226,33 +247,50 @@ export function mergeSyncPayload(
     }
   }
 
-  // 4. Transações (evita duplicar por ID)
+  // 4. Transações com desduplicação por ID, externalId e assinatura de data/valor/título
   const existingTxIds = new Set(currentState.transactions.map((t) => t.id));
+  const existingExternalIds = new Set(
+    currentState.transactions.map((t) => t.externalId).filter(Boolean) as string[]
+  );
+  const existingSignatures = new Set(
+    currentState.transactions.map(
+      (t) => `${t.date}|${t.amount}|${t.description.trim().toLowerCase()}`
+    )
+  );
+
   const newTxs: Transaction[] = [];
   for (const t of payload.transactions) {
-    if (!existingTxIds.has(t.id)) {
-      newTxs.push({
-        id: t.id,
-        type: t.isIncome ? 'income' : 'expense',
-        description: t.title,
-        amount: t.amount,
-        date: t.date,
-        categoryId: t.category,
-        accountId: mergedAccounts[0]?.id || 'principal',
-        paymentMethod: 'pix',
-        status: 'paid',
-        tags: ['sincronizado'],
-        createdAt: Date.now(),
-      });
+    const sig = `${t.date}|${t.amount}|${t.title.trim().toLowerCase()}`;
+    if (existingTxIds.has(t.id) || existingExternalIds.has(t.id) || existingSignatures.has(sig)) {
+      continue;
     }
+
+    newTxs.push({
+      id: t.id,
+      type: t.isIncome ? 'income' : 'expense',
+      description: t.title,
+      amount: t.amount,
+      date: t.date,
+      categoryId: t.category,
+      accountId: mergedAccounts[0]?.id || 'principal',
+      paymentMethod: 'pix',
+      status: 'paid',
+      tags: ['sincronizado'],
+      externalId: t.id,
+      createdAt: Date.now(),
+    });
   }
+
+  const allTxs = [...newTxs, ...currentState.transactions].sort((a, b) =>
+    b.date.localeCompare(a.date)
+  );
 
   return {
     ...currentState,
     accounts: mergedAccounts,
     debts: mergedDebts,
     goals: mergedGoals,
-    transactions: [...newTxs, ...currentState.transactions],
+    transactions: allTxs,
   };
 }
 

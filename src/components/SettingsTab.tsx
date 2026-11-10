@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { SiriShortcutsGuide } from './SiriShortcutsGuide';
 import { AuthModal } from './AuthModal';
-import { buildSyncPayload } from '../services/syncService';
+import { buildCloudSyncPayload, buildSyncPayload, mergeSyncPayload } from '../services/syncService';
 import {
   Account,
   AccountType,
@@ -137,7 +137,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const payload = buildSyncPayload(fullState);
+      // Envia todo o histórico (sem limite artificial de 30 transações)
+      const payload = buildCloudSyncPayload(fullState);
       const res = await fetch('/api/sync', {
         method: 'POST',
         headers,
@@ -146,11 +147,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       const data = await res.json();
       if (res.ok && data.success) {
+        // Integração bidirecional: atualiza estado local com dados consolidados da nuvem
+        if (data.payload) {
+          const merged = mergeSyncPayload(fullState, data.payload);
+          onRestoreState(merged);
+        }
         setSyncStatus({
           ok: true,
-          msg: `Sincronizado! ${data.importedTransactions ?? payload.transactions.length} lançamentos gravados no PostgreSQL Neon.`,
+          msg: `Sincronização bidirecional concluída! ${data.importedTransactions ?? payload.transactions.length} registros enviados e dados da nuvem integrados.`,
         });
-        notify('Sincronização com o Neon PostgreSQL concluída com sucesso!');
+        notify('Sincronização bidirecional com o PostgreSQL concluída!');
       } else {
         const errMsg = data.error || data.message || data.detail || 'Falha ao sincronizar com o banco.';
         setSyncStatus({
@@ -165,6 +171,35 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         msg: err?.message || 'Erro de conexão com a API de sincronização.',
       });
       notify('Falha ao conectar com o servidor PostgreSQL.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handlePullFromCloud = async () => {
+    setIsSyncing(true);
+    try {
+      const token = localStorage.getItem('finpay_auth_token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch('/api/sync', {
+        method: 'GET',
+        headers,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.payload) {
+        const merged = mergeSyncPayload(fullState, data.payload);
+        onRestoreState(merged);
+        notify('Dados baixados da nuvem e integrados com sucesso!');
+      } else {
+        notify(data.error || 'Nenhum dado encontrado na nuvem.');
+      }
+    } catch (err: any) {
+      notify('Erro ao baixar dados da nuvem.');
     } finally {
       setIsSyncing(false);
     }
@@ -376,19 +411,30 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       <div className="space-y-2 pt-1">
         {authUser ? (
-          <button
-            type="button"
-            onClick={handleSyncWithPostgres}
-            disabled={isSyncing}
-            className="w-full py-3 px-4 rounded-2xl bg-neutral-950 text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-neutral-900 active:scale-[0.99] transition disabled:opacity-60 shadow-sm"
-          >
-            {isSyncing ? (
-              <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
-            ) : (
-              <CloudUpload className="w-4 h-4 text-emerald-400" />
-            )}
-            {isSyncing ? 'Gravando no Neon PostgreSQL...' : 'Sincronizar Meus Dados Agora'}
-          </button>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleSyncWithPostgres}
+              disabled={isSyncing}
+              className="w-full py-3 px-4 rounded-2xl bg-neutral-950 text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-neutral-900 active:scale-[0.99] transition disabled:opacity-60 shadow-sm"
+            >
+              {isSyncing ? (
+                <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
+              ) : (
+                <CloudUpload className="w-4 h-4 text-emerald-400" />
+              )}
+              {isSyncing ? 'Sincronizando com o PostgreSQL...' : 'Sincronizar (Enviar & Atualizar da Nuvem)'}
+            </button>
+            <button
+              type="button"
+              onClick={handlePullFromCloud}
+              disabled={isSyncing}
+              className="w-full py-2.5 px-3 rounded-xl bg-neutral-100 text-neutral-700 font-semibold text-xs flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.99] transition disabled:opacity-60"
+            >
+              <Download className="w-3.5 h-3.5 text-neutral-500" />
+              Baixar Dados da Nuvem (Atualizar deste Aparelho)
+            </button>
+          </div>
         ) : (
           <div className="space-y-2">
             <button
@@ -1034,7 +1080,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         onClose={() => setAuthModalOpen(false)}
         onLoginSuccess={(user) => {
           setAuthUser(user);
-          notify('Bem-vindo(a), ' + user.name + '! Seu cofre está isolado.');
+          notify('Bem-vindo(a), ' + user.name + '! Baixando seus dados da nuvem...');
+          handlePullFromCloud();
         }}
       />
     </div>

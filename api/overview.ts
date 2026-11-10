@@ -91,14 +91,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [userId]
     );
 
-    // 5. Últimas 20 transações do usuário
+    // 5. Histórico de transações do usuário
     const txsRes = await client.query(
       `SELECT t.id, t.type, t.description, t.amount, to_char(t.date, 'YYYY-MM-DD') as date, 
-              t.category_id, t.payment_method, t.status, t.tags
+              t.category_id, t.payment_method, t.status, t.tags, t.external_id
        FROM transactions t
        WHERE t.user_id = $1
        ORDER BY t.date DESC, t.created_at DESC
-       LIMIT 20`,
+       LIMIT 500`,
       [userId]
     );
 
